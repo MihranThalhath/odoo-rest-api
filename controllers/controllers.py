@@ -1,15 +1,11 @@
 import json
 import math
-import logging
 
 from odoo import http, _, exceptions
 from odoo.http import request
 
 from .serializers import Serializer
 from .exceptions import QueryFormatError
-
-
-_logger = logging.getLogger(__name__)
 
 
 def error_response(error, msg):
@@ -80,8 +76,13 @@ class OdooAPI(http.Controller):
 
     @http.route("/api/<string:model>", type="http", auth="user", methods=["GET"], csrf=False)
     def get_model_data(self, model, **params):
+        if "context" in params:
+            context = json.loads(params["context"])
+            request_env = request.env[model].with_context(**context)
+        else:
+            request_env = request.env[model]
         try:
-            records = request.env[model].search([])
+            records = request_env.search([])
         except KeyError as e:
             msg = "The model `%s` does not exist." % model
             res = error_response(e, msg)
@@ -99,7 +100,7 @@ class OdooAPI(http.Controller):
 
         if "filter" in params:
             filters = json.loads(params["filter"])
-            records = request.env[model].search(filters, order=orders)
+            records = request_env.search(filters, order=orders)
 
         prev_page = None
         next_page = None
