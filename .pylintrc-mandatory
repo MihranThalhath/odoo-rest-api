@@ -2,11 +2,6 @@
 load-plugins=pylint_odoo
 score=n
 
-[ODOOLINT]
-manifest_required_keys=license
-license_allowed=AGPL-3,GPL-2,GPL-2 or any later version,GPL-3,GPL-3 or any later version,LGPL-3,OPL-1
-valid_odoo_versions=14.0
-
 [MESSAGES CONTROL]
 disable=all
 
@@ -26,7 +21,6 @@ enable=anomalous-backslash-in-string,
     eval-referenced,
     eval-used,
     incoherent-interpreter-exec-perm,
-    license-allowed,
     manifest-author-string,
     manifest-required-key,
     method-compute,

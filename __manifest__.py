@@ -1,42 +1,17 @@
-# -*- coding: utf-8 -*-
-{
-    'name': "Odoo REST API",
-
-    'summary': """
+{  # pylint: disable=C8102
+    "name": "Odoo REST API",
+    "summary": """
         Odoo REST API""",
-
-    'description': """
+    "description": """
         Odoo REST API
     """,
-
-    'author': "Yezileli Ilomo",
-    'website': "https://github.com/yezyilomo/odoo-rest-api",
-
-    # Categories can be used to filter modules in modules listing
-    # Check https://github.com/odoo/odoo/blob/12.0/odoo/addons/base/data/ir_module_category_data.xml
-    # for the full list
-    'category': 'developers',
-    'version': '0.1',
-
-    # any module necessary for this one to work correctly
-    'depends': ['base'],
-
-    # always loaded
-    'data': [
-        # 'security/ir.model.access.csv',
-        'views/views.xml',
-        'views/templates.xml',
-    ],
-    # only loaded in demonstration mode
-    'demo': [
-        'demo/demo.xml',
-    ],
-
+    "author": "Yezileli Ilomo, Mihran Thalhath",
+    "website": "https://github.com/mihranthalhath/odoo-rest-api",
+    "category": "developers",
+    "version": "15.0.1.0.1",
+    "depends": ["base"],
     "application": True,
     "installable": True,
     "auto_install": False,
-
-    'external_dependencies': {
-        'python': ['pypeg2']
-    }
+    "external_dependencies": {"python": ["pypeg2"]},
 }

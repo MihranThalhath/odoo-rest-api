@@ -1,5 +1,3 @@
-# -*- coding: utf-8 -*-
-import datetime
 from itertools import chain
 
 from .parser import Parser
@@ -29,11 +27,7 @@ class Serializer(object):
     def data(self):
         parsed_restql_query = self.get_parsed_restql_query()
         if self.many:
-            return [
-                self.serialize(rec, parsed_restql_query)
-                for rec
-                in self._record
-            ]
+            return [self.serialize(rec, parsed_restql_query) for rec in self._record]
         return self.serialize(self._record, parsed_restql_query)
 
     @classmethod
@@ -43,27 +37,19 @@ class Serializer(object):
             msg = "'%s' field is not found" % field_name
             raise LookupError(msg)
         try:
-            field_type = rec.fields_get(field_name).get(field_name).get('type')
+            field_type = rec.fields_get(field_name).get(field_name).get("type")
         except AttributeError:  # Some fields are blocked by ORM without sudo access
             return False
-        if field_type in ['one2many', 'many2many']:
-            return {
-                field_name: [record.id for record in rec[field_name]]
-            }
-        elif field_type in ['many2one']:
+        if field_type in ["one2many", "many2many"]:
+            return {field_name: [record.id for record in rec[field_name]]}
+        elif field_type in ["many2one"]:
             return {field_name: rec[field_name].id}
-        elif field_type == 'datetime' and rec[field_name]:
-            return {
-                field_name: rec[field_name].strftime("%Y-%m-%d-%H-%M")
-            }
-        elif field_type == 'date' and rec[field_name]:
-            return {
-                field_name: rec[field_name].strftime("%Y-%m-%d")
-            }
-        elif field_type == 'time' and rec[field_name]:
-            return {
-                field_name: rec[field_name].strftime("%H-%M-%S")
-            }
+        elif field_type == "datetime" and rec[field_name]:
+            return {field_name: rec[field_name].strftime("%Y-%m-%d-%H-%M")}
+        elif field_type == "date" and rec[field_name]:
+            return {field_name: rec[field_name].strftime("%Y-%m-%d")}
+        elif field_type == "time" and rec[field_name]:
+            return {field_name: rec[field_name].strftime("%H-%M-%S")}
         elif field_type == "binary" and isinstance(rec[field_name], bytes) and rec[field_name]:
             return {field_name: rec[field_name].decode("utf-8")}
         else:
@@ -75,19 +61,11 @@ class Serializer(object):
         if field_name not in all_fields:
             msg = "'%s' field is not found" % field_name
             raise LookupError(msg)
-        field_type = rec.fields_get(field_name).get(field_name).get('type')
-        if field_type in ['one2many', 'many2many']:
-            return {
-                field_name: [
-                    cls.serialize(record, nested_parsed_query)
-                    for record
-                    in rec[field_name]
-                ]
-            }
-        elif field_type in ['many2one']:
-            return {
-                field_name: cls.serialize(rec[field_name], nested_parsed_query)
-            }
+        field_type = rec.fields_get(field_name).get(field_name).get("type")
+        if field_type in ["one2many", "many2many"]:
+            return {field_name: [cls.serialize(record, nested_parsed_query) for record in rec[field_name]]}
+        elif field_type in ["many2one"]:
+            return {field_name: cls.serialize(rec[field_name], nested_parsed_query)}
         else:
             # Not a neste field
             msg = "'%s' is not a nested field" % field_name
@@ -108,14 +86,10 @@ class Serializer(object):
                 if field == "*":
                     continue
                 for nested_field, nested_parsed_query in field.items():
-                    built_nested_field = cls.build_nested_field(
-                        rec,
-                        nested_field,
-                        nested_parsed_query
-                    )
+                    built_nested_field = cls.build_nested_field(rec, nested_field, nested_parsed_query)
                     data.update(built_nested_field)
 
-            flat_fields = set(all_fields).symmetric_difference(set(parsed_query['exclude']))
+            flat_fields = set(all_fields).symmetric_difference(set(parsed_query["exclude"]))
             for field in flat_fields:
                 flat_field = cls.build_flat_field(rec, field)
                 if flat_field:
@@ -127,23 +101,16 @@ class Serializer(object):
             # so self.parsed_restql_query["include"] contains only fields
             # to include
             all_fields = rec.fields_get_keys()
-            if "*" in parsed_query['include']:
+            if "*" in parsed_query["include"]:
                 # Include all fields
-                parsed_query['include'] = filter(
-                    lambda item: item != "*",
-                    parsed_query['include']
-                )
-                fields = chain(parsed_query['include'], all_fields)
-                parsed_query['include'] = list(fields)
+                parsed_query["include"] = filter(lambda item: item != "*", parsed_query["include"])
+                fields = chain(parsed_query["include"], all_fields)
+                parsed_query["include"] = list(fields)
 
             for field in parsed_query["include"]:
                 if isinstance(field, dict):
                     for nested_field, nested_parsed_query in field.items():
-                        built_nested_field = cls.build_nested_field(
-                            rec,
-                            nested_field,
-                            nested_parsed_query
-                        )
+                        built_nested_field = cls.build_nested_field(rec, nested_field, nested_parsed_query)
                         data.update(built_nested_field)
                 else:
                     flat_field = cls.build_flat_field(rec, field)
