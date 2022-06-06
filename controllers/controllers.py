@@ -19,7 +19,7 @@ def error_response(error, msg):
                 "name": str(error),
                 "debug": "",
                 "message": msg,
-                "arguments": list(error.args),
+                "arguments": list(error.args) if hasattr(error, "args") else "",
                 "exception_type": type(error).__name__,
             },
         },
@@ -32,21 +32,88 @@ class OdooAPI(http.Controller):
         try:
             login = post["login"]
         except KeyError:
-            raise exceptions.AccessDenied(message="`login` is required.")
+            raise exceptions.AccessDenied(message=_("`login` is required."))
 
         try:
             password = post["password"]
         except KeyError:
-            raise exceptions.AccessDenied(message="`password` is required.")
+            raise exceptions.AccessDenied(message=_("`password` is required."))
 
         try:
             db = post["db"]
         except KeyError:
-            raise exceptions.AccessDenied(message="`db` is required.")
+            raise exceptions.AccessDenied(message=_("`db` is required."))
 
         http.request.session.authenticate(db, login, password)
         res = request.env["ir.http"].session_info()
         return res
+
+    @http.route("/reset_password/", type="json", auth="none", methods=["POST"], csrf=False)
+    def reset_password(self, *args, **post):
+        try:
+            login = post["login"]
+        except KeyError:
+            raise exceptions.AccessDenied(message="`login` is required.")
+        user_obj = request.env["res.users"].sudo()
+        user = user_obj.search([("login", "=", login), ("active", "=", True)])
+        if not user:
+            raise exceptions.AccessDenied(message=_("User with given login '%s' does not exist.'") % login)
+
+        # Enable Reset:
+        config_obj = request.env["ir.config_parameter"].sudo()
+        param = config_obj.get_param("auth_signup.reset_password", "")
+        if str(param).lower() != "true":
+            raise exceptions.AccessDenied(
+                message=_(
+                    "The option to reset password is not enabled at the moment. Kindly contact your administrator."
+                )
+            )
+        try:
+            user_obj = request.env.user
+            user_obj.reset_password(login)
+        except Exception as e:
+            res = error_response(e, str(e))
+            return http.Response(json.dumps(res), status=200, mimetype="application/json")
+        return json.dumps(
+            {
+                "jsonrpc": "2.0",
+                "id": False,
+                "result": "ok",
+            }
+        )
+
+    @http.route("/change_password/", type="json", auth="user", methods=["POST"], csrf=False)
+    def change_password(self, *args, **post):
+        try:
+            current_password = post["current_password"]
+        except KeyError:
+            raise exceptions.AccessDenied(
+                message=_("`current_password` is required."),
+            )
+        try:
+            new_password = post["new_password"]
+        except KeyError:
+            raise exceptions.AccessDenied(
+                message=_("`new_password` is required."),
+            )
+        # Note: request.env.user has other enviroment with uid=1
+        # Check credentials
+        user = request.env["res.users"].browse(request.env.uid)
+        if not user:
+            raise exceptions.AccessDenied(
+                message=_("User not logged in."),
+            )
+        try:
+            user.change_password(current_password, new_password)
+        except Exception as e:
+            raise exceptions.AccessDenied(message=str(e))
+        return json.dumps(
+            {
+                "jsonrpc": "2.0",
+                "id": False,
+                "result": "ok",
+            }
+        )
 
     @http.route("/object/<string:model>/<string:function>", type="json", auth="user", methods=["POST"], csrf=False)
     def call_model_function(self, model, function, **post):
@@ -84,7 +151,7 @@ class OdooAPI(http.Controller):
         try:
             records = request_env.search([])
         except KeyError as e:
-            msg = "The model `%s` does not exist." % model
+            msg = _("The model `%s` does not exist.") % model
             res = error_response(e, msg)
             return http.Response(json.dumps(res), status=200, mimetype="application/json")
 
@@ -148,7 +215,7 @@ class OdooAPI(http.Controller):
         try:
             records = request.env[model].search([])
         except KeyError as e:
-            msg = "The model `%s` does not exist." % model
+            msg = _("The model `%s` does not exist.") % model
             res = error_response(e, msg)
             return http.Response(json.dumps(res), status=200, mimetype="application/json")
 
@@ -159,6 +226,10 @@ class OdooAPI(http.Controller):
 
         # TODO: Handle the error raised by `ensure_one`
         record = records.browse(rec_id).ensure_one()
+        if not record.exists():
+            msg = _("The record `%s` does not exist.") % rec_id
+            res = error_response(_("Record does not exist."), msg)
+            return http.Response(json.dumps(res), status=200, mimetype="application/json")
 
         try:
             serializer = Serializer(record, query)
@@ -174,13 +245,13 @@ class OdooAPI(http.Controller):
         try:
             data = post["data"]
         except KeyError:
-            msg = "`data` parameter is not found on POST request body"
+            msg = _("`data` parameter is not found on POST request body")
             raise exceptions.ValidationError(msg)
 
         try:
             model_to_post = request.env[model]
         except KeyError:
-            msg = "The model `%s` does not exist." % model
+            msg = _("The model `%s` does not exist.") % model
             raise exceptions.ValidationError(msg)
 
         # TODO: Handle data validation
@@ -200,13 +271,13 @@ class OdooAPI(http.Controller):
         try:
             data = post["data"]
         except KeyError:
-            msg = "`data` parameter is not found on PUT request body"
+            msg = _("`data` parameter is not found on PUT request body")
             raise exceptions.ValidationError(msg)
 
         try:
             model_to_put = request.env[model]
         except KeyError:
-            msg = "The model `%s` does not exist." % model
+            msg = _("The model `%s` does not exist.") % model
             raise exceptions.ValidationError(msg)
 
         if "context" in post:
@@ -247,13 +318,13 @@ class OdooAPI(http.Controller):
         try:
             data = post["data"]
         except KeyError:
-            msg = "`data` parameter is not found on PUT request body"
+            msg = _("`data` parameter is not found on PUT request body")
             raise exceptions.ValidationError(msg)
 
         try:
             model_to_put = request.env[model]
         except KeyError:
-            msg = "The model `%s` does not exist." % model
+            msg = _("The model `%s` does not exist.") % model
             raise exceptions.ValidationError(msg)
 
         # TODO: Handle errors on filter
@@ -300,7 +371,7 @@ class OdooAPI(http.Controller):
         try:
             model_to_del_rec = request.env[model]
         except KeyError as e:
-            msg = "The model `%s` does not exist." % model
+            msg = _("The model `%s` does not exist.") % model
             res = error_response(e, msg)
             return http.Response(json.dumps(res), status=200, mimetype="application/json")
 
@@ -323,7 +394,7 @@ class OdooAPI(http.Controller):
         try:
             model_to_del_rec = request.env[model]
         except KeyError as e:
-            msg = "The model `%s` does not exist." % model
+            msg = _("The model `%s` does not exist.") % model
             res = error_response(e, msg)
             return http.Response(json.dumps(res), status=200, mimetype="application/json")
 
@@ -345,7 +416,7 @@ class OdooAPI(http.Controller):
         try:
             request.env[model]
         except KeyError as e:
-            msg = "The model `%s` does not exist." % model
+            msg = _("The model `%s` does not exist.") % model
             res = error_response(e, msg)
             return http.Response(json.dumps(res), status=200, mimetype="application/json")
 

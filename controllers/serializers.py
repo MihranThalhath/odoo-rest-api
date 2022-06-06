@@ -1,6 +1,7 @@
 from itertools import chain
 
 from odoo.models import NewId
+from odoo import exceptions
 
 from .parser import Parser
 from .exceptions import QueryFormatError
@@ -39,24 +40,40 @@ class Serializer(object):
             msg = "'%s' field is not found" % field_name
             raise LookupError(msg)
 
+        field_vals = rec.fields_get(field_name).get(field_name)
+        if not field_vals:
+            return {}
+
+        field_type = field_vals.get("type")
         try:
-            field_type = rec.fields_get(field_name).get(field_name).get("type")
-        except AttributeError:  # Some fields are blocked by ORM without sudo access
-            return False
-        if field_type in ["one2many", "many2many"]:
-            return {field_name: [record.id for record in rec[field_name] if not isinstance(record.id, NewId)]}
-        elif field_type in ["many2one"]:
-            return {field_name: rec[field_name].id} if not isinstance(rec[field_name].id, NewId) else {field_name: None}
-        elif field_type == "datetime" and rec[field_name]:
-            return {field_name: rec[field_name].strftime("%Y-%m-%d-%H-%M")}
-        elif field_type == "date" and rec[field_name]:
-            return {field_name: rec[field_name].strftime("%Y-%m-%d")}
-        elif field_type == "time" and rec[field_name]:
-            return {field_name: rec[field_name].strftime("%H-%M-%S")}
-        elif field_type == "binary" and isinstance(rec[field_name], bytes) and rec[field_name]:
-            return {field_name: rec[field_name].decode("utf-8")}
-        else:
-            return {field_name: rec[field_name]}
+            if field_type in ["one2many", "many2many"]:
+                return {
+                    field_name: [
+                        (record.id, record.display_name)
+                        for record in rec[field_name]
+                        if not isinstance(record.id, NewId)
+                    ]
+                }
+            elif field_type in ["many2one"]:
+                return (
+                    {field_name: (rec[field_name].id, rec[field_name].display_name)}
+                    if not isinstance(rec[field_name].id, NewId)
+                    else {field_name: None}
+                )
+            elif field_type == "datetime" and rec[field_name]:
+                return {field_name: rec[field_name].strftime("%Y-%m-%d-%H-%M")}
+            elif field_type == "date" and rec[field_name]:
+                return {field_name: rec[field_name].strftime("%Y-%m-%d")}
+            elif field_type == "time" and rec[field_name]:
+                return {field_name: rec[field_name].strftime("%H-%M-%S")}
+            elif field_type == "binary" and isinstance(rec[field_name], bytes) and rec[field_name]:
+                return {field_name: rec[field_name].decode("utf-8")}
+            else:
+                return {field_name: rec[field_name]}
+        except exceptions.AccessError:
+            return {}
+        except exceptions.MissingError:
+            return {}
 
     @classmethod
     def build_nested_field(cls, rec, field_name, nested_parsed_query):
@@ -95,8 +112,7 @@ class Serializer(object):
             flat_fields = set(all_fields).symmetric_difference(set(parsed_query["exclude"]))
             for field in flat_fields:
                 flat_field = cls.build_flat_field(rec, field)
-                if flat_field:
-                    data.update(flat_field)
+                data.update(flat_field)
 
         elif parsed_query["include"]:
             # Here we are sure that self.parsed_restql_query["exclude"]
@@ -117,8 +133,7 @@ class Serializer(object):
                         data.update(built_nested_field)
                 else:
                     flat_field = cls.build_flat_field(rec, field)
-                    if flat_field:
-                        data.update(flat_field)
+                    data.update(flat_field)
         else:
             # The query is empty i.e query={}
             # return nothing
