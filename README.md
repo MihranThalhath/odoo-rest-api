@@ -15,18 +15,21 @@ import json
 import requests
 import sys
 
-AUTH_URL = 'http://localhost:8069/auth/'
+# Change BASE_URL accordingly
+BASE_URL = "http://localhost:8069"
 
-headers = {'Content-type': 'application/json'}
+AUTH_URL = f"{BASE_URL}/auth/"
+
+headers = {"Content-type": "application/json"}
 
 
 # Remember to configure default db on odoo configuration file(dbfilter = ^db_name$)
 # Authentication credentials
 data = {
-    'params': {
-         'login': 'your@email.com',
-         'password': 'yor_password',
-         'db': 'your_db_name'
+    "params": {
+         "login": "your@email.com",
+         "password": "your_password",
+         "db": "your_db_name"
     }
 }
 
@@ -44,7 +47,7 @@ cookies = res.cookies
 
 # Example 1
 # Get users
-USERS_URL = 'http://localhost:8069/api/res.users/'
+USERS_URL = f"{BASE_URL}/api/res.users/"
 
 # This will take time since it retrives all res.users fields
 # You can use query param to fetch specific fields
@@ -61,10 +64,10 @@ print(res.text)
 # Example 2
 # Get products(assuming you have products in you db)
 # Here am using query param to fetch only product id and name(This will be faster)
-USERS_URL = 'http://localhost:8069/api/product.product/'
+USERS_URL = f"{BASE_URL}/api/product.product/"
 
 # Use query param to fetch only id and name
-params = {'query': '{id, name}'}
+params = {"query": "{id, name}"}
 
 res = requests.get(
     USERS_URL,
